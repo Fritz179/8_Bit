@@ -1,9 +1,9 @@
 /*
   EEPROMS
 
-  0: I/O high nibble(MARL, MARH, AI, BI, ALUI) low nibble(AO, BO, ALUO, RAMO, PRAM)
+  0: I/O high nibble(MARL, MARH, AI, BI, ALUI, SPLI, SPHI, RAMI) low nibble(AO, BO, ALUO, RAMO, PRAM, SPLO, SPHO)
   1: Math (PCH, PCL, CIN, M, S0, S1, S2, S3)
-  2: control (#NEXT, PCC)
+  2: control (#NEXT, PCC, SPC)
 */
 const opcodes = []
 function defineOP(e0, e1, e2) {
@@ -22,6 +22,8 @@ const BO   = defineOP((0b1000 ^ 15), 0, 0)
 const ALUO = defineOP((0b0100 ^ 15), 0, 0)
 const RAMO = defineOP((0b1100 ^ 15), 0, 0)
 const PRAM = defineOP((0b0010 ^ 15), 0, 0)
+const SPLO = defineOP((0b1010 ^ 15), 0, 0)
+const SPHO = defineOP((0b0110 ^ 15), 0, 0)
 const NOO  = defineOP((0b1111 ^ 15), 0, 0)
 
 const MARL = defineOP((0b0000 ^ 15) << 4, 0, 0) // 0b1234
@@ -29,6 +31,9 @@ const MARH = defineOP((0b1000 ^ 15) << 4, 0, 0)
 const AI   = defineOP((0b0100 ^ 15) << 4, 0, 0)
 const BI   = defineOP((0b1100 ^ 15) << 4, 0, 0)
 const ALUI = defineOP((0b0010 ^ 15) << 4, 0, 0)
+const SPLI = defineOP((0b1010 ^ 15) << 4, 0, 0)
+const SPHI = defineOP((0b0110 ^ 15) << 4, 0, 0)
+const RAMI = defineOP((0b1110 ^ 15) << 4, 0, 0)
 const NOI  = defineOP((0b1111 ^ 15) << 4, 0, 0)
 
 const PCH  = defineOP(0, 1, 0)
@@ -91,7 +96,7 @@ function getLen(cycles) {
   let out = 0
 
   for (let i = 0; i < cycles.length; i++) {
-    if (cycles[i][2] & PCC) out++
+    if (cycles[i][2] & opcodes[PCC][2]) out++
   }
 
   return out
@@ -217,10 +222,12 @@ module.exports = new class Decoder {
       const flags = extractFlags(i, ZFB, NFB, VFB, CFB) ^ ALF
       const cycle = instToOpcode[inst][flags][clk]
 
-      console.log(flags, clk, inst);
       data[i] = (cycle ? cycle : compressOPS([]))[num]
     }
 
-    return data
+    return {
+      type: 'eeprom',
+      data
+    }
   }
 }

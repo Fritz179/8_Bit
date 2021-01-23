@@ -1,20 +1,20 @@
 const {nameToInst, instToLen} = require('./Decoder.js');
 
-let err = false
-function assert(condition, message, line) {
-  if (!condition) {
-    console.log(message);
-    console.log('  On line: ', line);
-    err = true
-  }
+const {assert} = require('../args.js');
+const fileErr = '500 internal error: Invalid file?'
+const validLine = /^\s*(\/\/|$)|\b(?<index>0x[0-9a-f]{4}), (?<inst>0x[0-9a-f]{2}):/
+const comment = /\/\/.*/g
+
+function assertLine(condition, message, line) {
+  assert(condition, `${message}\n\sOn line: ${line}`)
 }
 
 function assertNum(num, message, line) {
-  assert(typeof num == 'number', message, line)
+  assertLine(typeof num == 'number', message, line)
 }
 
 module.exports = new class Compiler {
-  tokenize({token, line}) {
+  tokenize({token, line, comment}) {
     const name = token.match(/.*:/)
     token = token.replace(/.*:\s*/, '')
 
@@ -24,7 +24,7 @@ module.exports = new class Compiler {
     const number = token.match(/[0-9]+/)
     token = token.replace(/[0-9]+/, '<to>')
 
-    const out = { token, line }
+    const out = { token, line, comment}
 
     if (number) out.to = Number(number[0])
     if (name) out.name = name[0].slice(0, name[0].length - 1)
@@ -38,10 +38,17 @@ module.exports = new class Compiler {
 
     return prog.split('\n')
       .map(el => el
-        .replace(/\/\/.*/g, '')
         .trim()
         .replace(/\s\s+/g, ' '))
-      .map(el => { return {token: el, line: line++}})
+      .map(el => {
+        const comm = el.match(comment, '')?.[0]
+        el = el.replace(comm, '').trim()
+        return {
+          token: el,
+          line: line++,
+          comment: comm
+        }
+      })
       .filter(el => el.token != '')
       .map(token => this.tokenize(token))
   }
@@ -61,6 +68,8 @@ module.exports = new class Compiler {
       assertNum(inst, `invalid instruction: ${curr.token}`, curr.line)
 
       curr.inst = inst
+      curr.pos = pos
+
       pos += instToLen[inst]
     }
 
@@ -75,32 +84,108 @@ module.exports = new class Compiler {
       }
     }
 
-    return tokens
-  }
-
-  convert(code) {
-    const out = []
-
-    for (let i = 0; i < code.length; i++) {
-      const {inst, to} = code[i]
-      out.push(inst)
-      if (to) out.push(to)
+    return {
+      type: 'token',
+      data: tokens
     }
-
-    return out
   }
 
-  compile(prog) {
+  compile(prog, verbose) {
     const pure = this.purify(prog)
     const code = this.resolve(pure)
-
-    if (err) return -1
-
-    return this.convert(code)
+    if (verbose) console.log(code);
+    return this.convert(code, 'pretty')
   }
 
+  convert(data, to) {
+    if (data.type == to) return data
 
-  toHex(num) {
-    return `0x${num.toString(16)}`
+    if (data.type == 'token') {
+      const tokens = data.data
+      let out = ''
+
+      const hex = (num, len) => num.toString(16).padStart(len, '0')
+
+      tokens.forEach(({pos, token, inst, to, name, jump, comment}) => {
+        if (name) name += ':'
+        if (!name) name = ''
+        name = name.padEnd(10, ' ')
+
+        out += `${name}0x${hex(pos, 4)}, 0x${hex(inst, 2)}: ${token}`
+
+        if (to >= 0) {
+          out += `\n${''.padEnd(10, ' ')}0x${hex(pos + 1, 4)}, 0x${hex(to, 2)}: `
+          const jmpto = `(${to <= pos ? '-' : '+'}0x${Math.abs((pos + 1) - to).toString(16)}) ${jump}`
+          if (comment) {
+            out += jmpto.padEnd(16, ' ') + comment
+          } else {
+            out += jmpto
+          }
+        }
+
+        out += '\n'
+      })
+
+      return {
+        type: 'pretty',
+        data: out
+      }
+    }
+
+    const out = []
+    if (data.type == 'pretty') {
+      data.data.split('\n').forEach((line, lineNum) => {
+        const result = line.match(validLine)
+        assert(result, fileErr)
+
+        const {index, inst} = result.groups
+
+        if (index || inst) {
+          out[Number(index)] = Number(inst)
+        }
+      })
+
+      // for (let i = 0; i < out.length; i++) {
+      //   assert(out[i] >= 0, 'Hole in program :-)')
+      // }
+
+      return this.convert({
+        type: 'eeprom',
+        data: out
+      }, to)
+    }
+
+    if (data.type == 'eeprom') {
+      const out = []
+
+      for (let i = 0; i < data.data.length; i++) {
+        out[i] = data.data[i] || 0
+      }
+
+      return out
+    }
+
+    console.log(data, to);
+    assert(false, fileErr)
+  }
+
+  validate(data) {
+    if (data.indexOf('FASM_BIN') == 0) {
+      return {
+        type: 'eeprom',
+        data: data.slice('FASM_BIN'.length).split('').map(c => c.charCodeAt(0))
+      }
+    }
+
+    data.split('\n').forEach((line, lineNum) => {
+      const valid = line.match(validLine)
+      assert(valid, `Invalid line: ${lineNum},\n${line}\n`)
+    })
+
+
+    return {
+      type: 'pretty',
+      data
+    }
   }
 }

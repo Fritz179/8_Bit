@@ -1,134 +1,87 @@
 require('dotenv').config();
 
+const version = '1.1.0'
+const {parse, num, path, assert, read, write} = require('./args.js')
+
 const pro = require('./setup/Programmer.js');
 const com = require('./setup/Compiler.js');
 const dec = require('./setup/Decoder.js');
 
-const args = require('./args.js');
-if (args == -1) return
+const dataErr = 'Cannot use -CEL together.'
+const noDataErr = 'No program loaded, use one of -CEL.'
+const binError = 'Cannot use binary (.bin) data.'
+let data, outPath, verbose = false
 
-if (args.eeprom != -1) {
-  pro.write(dec.getEEPROM(args.eeprom))
+parse([
+	['T', 'tokens',  verb,    null,       'Log compilation tokens, use before -C'],
+	['C', 'compile', compile, path(),     'Compile sourcecode into executable, path is required'],
+	['E', 'eeprom',  eeprom,  num(0, 2),  'Get opcode decoders data, select beetwen EEPROM 0-2'],
+	['L', 'load',    load,    path(),     'Load and write a program already compiled (.fritz / .bin), path is required'],
+	['P', 'program', program, null,       'Use the EEPROM programmer, available only on Raspy'],
+	['Z', 'zero',    zero,    num(null),  'Erase the eeprom, available only on Raspy, can choose beetwen 1s and 0s'],
+  ['B', 'bin',     bin,     path(null), 'Write the binary (.bin) to disk, use with -O'],
+	['O', 'output',  output,  path(null), 'Write the program (.fritz / .bin) to disk, path is optional']
+], version)
+
+/*
+	F => .f to .fsm
+*/
+
+function verb() {
+	verbose = true
 }
 
-if (args.clear != -1) {
+function compile(path) {
+	assert(!data, dataErr)
+	const src = read(path)
+
+	data = com.compile(src, verbose)
+
+	console.log(data.data, '\n');
+  console.log(`Program length: ${data.data.length} bytes`);
+  console.log(`Par na volta tas fait an programma ca cumpila senza erur ;-)\n`);
+
+	outPath = path
+}
+
+function eeprom(num) {
+	assert(!data, dataErr)
+	data = dec.getEEPROM(num)
+}
+
+function load(path) {
+	assert(!data, dataErr)
+  data = com.validate(read(path))
+  outPath = path
+
+  const out = com.convert(data, 'eeprom')
+	pro.write(out.data)
+}
+
+function program() {
+	assert(data, noDataErr)
+  const out = com.convert(data, 'eeprom')
+  pro.write(out.data)
+}
+
+function zero(num = 0) {
   const data = []
   for (let i = 0; i < 8192; i++) {
-    data[i] = args.clear
+    data[i] = num ? 1 : 0
   }
+
   pro.write(data)
 }
 
-
-
-if (args.compile) {
-  const prog = com.compile(args.compile)
-  if (prog == -1) return console.log('\nCOMPILATION FAILED!! :-(\n(amo na volta)\n');
-
-  console.log(`Program length: ${prog.length} bytes`);
-  console.log(`Par na volta tas fait an programma ca cumpila senza erur ;-)\n`);
-  console.log(prog);
-  pro.write(prog)
+function output(path) {
+	if (!path) path = outPath
+	assert(data, noDataErr)
+	write(path, data.data, '.asm')
 }
-dec.getEEPROM(1);
-console.log('Main exiting with no error\n');
 
-/*
-  -O --opcode 0..2
-  -P --program
-  -C --clear
-*/
-
-/*
-
-*/
-
-/*
-call:
-
-  push data
-  push data
-  test data
-  mov data
-  mov aluo
-
-  1 + 4
-  dec splo marl
-  aluo spli
-  decc spho marh
-  aluo sphi
-  data ram pcc
-  dec splo marl
-  aluo spli
-  decc spho marh
-  aluo sphi
-  data ram pcc
-  data test pcc
-  data pch
-  aluo pcl
-
-  OR
-  3 + 4
-  PUSH PCL
-  PUSH PCH
-  CALL ADDR (JMP JMPL)
-
-PUSH x:
-  dec splo marl
-  aluo spli
-  decc spho marh
-  aluo sphi
-  xout ram pcc
-
-POP x:
-  inc splo
-  aluo spli marl
-  incc spho
-  aluo sphi marh
-  xin ramo
-
-POP x 161:
-  inc sp
-  xin ramo
-
-
-JMP:
-  data pch
-
-JMPL:
-  data test pcc
-  data pch
-  aluo pcl
-
-ret:
-
-  dec splo
-  aluo spli marl
-  decc spho
-  aluo sphi marh
-  pcl ramo
-  dec splo
-  aluo spli marl
-  decc spho
-  aluo sphi marh
-  pch ramo
-
-ret cun 161:
-  inc sp
-  ramo pcl
-  inc sp
-  ramo pch
-
-*/
-
-
-/*
-  sp = 0
-  simple call =>
-    [sp++] = retAddr
-    pc = callAddr
-
-    push / pop for locals
-
-    pc = [sp--]
-*/
+function bin(path) {
+	if (!path) path = outPath
+	assert(data, noDataErr)
+	const out = com.convert(data, 'bin')
+  write(path, out, '.bin')
+}
