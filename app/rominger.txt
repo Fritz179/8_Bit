@@ -1,0 +1,432 @@
+32 pagini da 255 bytes
+jmp i van noma tra pagina (low byte)
+call le 5 bytes (1 inst, 2 push ret, 2 jmp)
+
+
+
+
+.page 0
+	clr a
+	clr b
+start:	inc a
+	jnc start
+	inc b
+	jnc start
+hlt:	jmp hlt
+
+
+
+
+	// primes \\
+
+/*
+	0: testing
+*/
+
+
+bp/sp points at base of stack
+starts at 0x7fff
+
+test x: alu = x
+cmp x : alu = x - b
+
+push x:	mov [sp], x
+	dec sp
+
+	splo marl
+	dec  splo
+	aluo spli
+	spho marh
+	decb spho
+	aluo sphi
+	xout rami
+
+
+pop x:	inc sp
+	mov x, [sp]
+
+	spc
+	splo raml
+	spho ramh
+	ramo xin
+
+call:	push pc (2b)
+	jmpl <num> (2b)
+
+	push pch
+	push pcl
+	jmpl
+
+jmpl:
+	pram pcl pcc
+	pram pch
+	[]
+
+
+ret: 	pop  pc(2b)
+	pcin
+
+	spc
+	splo raml
+	spho ramh
+	ramo pcl spc
+	splo raml
+	spho ramh spc
+	ramo pch pcc next (overflow => T = 0)
+
+
+const primes = [2]
+for (let i = 3; i < 256; i += 2) {
+  if(primes.every(prime => i % prime != 0)) {
+    primes.push(i)
+  }
+}
+
+const primes = [2]
+for (let i = 3; i < 256; i += 2)
+  if(primes.every(prime => i % prime != 0))
+    primes.push(i)
+
+.page 	0
+.equ	pCount 0
+.equ	pArr 1
+
+	clr a
+	clr b
+	mov [pArr], 2	// 2 first prime
+	mov [pCopunt], 1
+	inc a		// set a to 1 (3 - 2)
+start:	add a, 2	// test next candidarte
+	jc show		// only to 255
+	push a		// [candidate]
+	clr b		// index = 0
+loop:	cmp [pCount]
+	jae addP	// while (index < pCount) {
+	push b		  // [candidate, index]
+	add b, pArr
+	mov b, [b]	  // b = pArr[index]
+
+check:	sub a, b	  // a = candidate, b = prime
+	ja check	  // get a mod b
+	pop b		  // index, [candidate]
+	jz notP		  // not prime
+	jb testN	  // test next
+
+notP:	pop a		  // candidate, []
+	jmp start	  // break
+
+testN:	inc b		  // index++
+	mov a, [sp]
+	jmp loop	// }
+
+
+addP: 	pop a		// candidate, []
+	mov b, [pCount]
+	add b, pArr
+	mov [b], a	//
+	inc [pCount]	// pArr.push(candidate)
+	jmp start
+
+
+show:	clr b		// index = 0
+_next:	cmp [pCount]
+	jae show	// while (index < pCount) {
+	mov a, [b]	  // show on a
+	inc b		  // index++
+	jmp _next	// }
+
+
+
+u8 pCount
+u8 pArr[100]
+
+a = 0
+b = 0
+pArr[0] = 2
+*pCount = 1
+
+push a
+candidates: for (a = 3; !C_FLAG; a += 2) {
+  poke a
+
+  for (b = 0; b < *pCount; b++) {
+
+    push b
+    b = pArr[b]
+
+    while (a > b) {
+      a -= b
+    }
+
+    pop b
+    peek a
+
+    if (!a) {
+      continue candidates
+    } else {
+      b++
+    }
+  }
+
+  peek pArr[*pCount]
+  *pCount++
+}
+
+
+b = 0
+while(true) {
+  a = pArr[b++]
+  if (b >= *pCount) {
+    b = 0
+  }
+}
+
+
+
+MULTIPLY a & b
+
+	mov [sp], a
+	cmp a, b
+	jbe noSwap
+	mov [sp], b
+loop:	add a, b
+	dec [sp]
+	ja loop
+	ret
+
+
+
+
+
+f to a
+label: for (assignment; comparison; increment) {
+  // stuff
+  continue
+  break
+}
+
+		assignment
+label_com	comparison
+		jmpiffalse label_end
+		stuff
+		continue = jump label_inc
+		break = jump label_end
+		stuff
+label_inc	increment
+		jmp label_com
+label_end
+
+
+
+if (a > b) {
+  stuff
+}
+
+		comparison
+		jmpiffalse label_end
+  		stuff
+label_end
+
+if (a > b) {
+  stuffif
+} else {
+  stuffelse
+}
+
+		comparison
+		jumpifTrue label_if
+		stuffelse
+		jmp label_end
+label_if	stuffif
+label_end
+
+if (cmp1) {
+  stuffif
+} else if (comp2) {
+  stuffelif1
+} else if (comp3) {
+  stuffelif2
+} else {
+  stuffElse
+}
+
+
+
+		cmp1
+		jumpifTrue label_if
+		cmp2
+		jumpifTrue label_elif1
+		cmp3
+		jumpifTrue label_elif2
+		stuffElse
+		jmp label_end
+label_elif2 	stuff2
+		jmp label_end
+label_elif1 	stuff1
+		jmp label_end
+label_if	stuffif
+label_end
+
+
+u8 a
+u8 b
+
+a >  b ? ja  : jbe
+a >= b ? jae : je
+a == b ? je  : jne
+a <= b ? jbe : ja
+a <  b ? jb  : jae
+a != b ? jne : je
+
+C_FLAG jc
+!C_FLAG jnc
+
+if (con1 && con2) {
+  stuff
+}
+
+		cmp1
+		jmpFalse end
+		cmp2
+		jmpFalse end
+label_stuff:	doStuff
+label_end:
+
+
+if (con1 || con2) {
+  stuff
+}
+
+		cmp1
+		jmpTrue label_stuff
+		cmp2
+		jmpFalse end
+label_stuff:	doStuff
+label_end:
+
+
+.cost 	MASK_1 = 1 => 0x1 => 0b01
+.cost 	MASK_2 = 2 => 0x2 => 0b10
+.alloc 	name len
+
+
+init:
+	clr a
+	clr b
+	clr sp
+
+
+[
+['je', 'jne', 'jz']
+['jb', 'jae', 'jc']
+['ja', 'jbe', ([Z, N, V, C]) => C || Z],
+['jl', 'jge', ([Z, N, V, C]) => N != V],
+['jg', 'jle', ([Z, N, V, C]) => !Z && S == V],
+]
+
+test x
+
+[[xout, TEST]]
+
+
+push x
+
+[
+[SPLO, MARL],
+[SPLO, DEC],
+[ALUO, SPLI],
+[SPHO, MARH],
+[SPHO, DECC],
+[ALUO, SPHI],
+[xout, RAMI]
+]
+
+pop x
+
+[
+[SPC],
+[SPLO, MARL],
+[SPHO, MARH],
+[RAMO, xin]
+]
+
+call <num>
+
+insert:	push $l
+	push $h
+	jmp <num>
+
+ret:
+
+[
+[SPC],
+[SPLO, RAML],
+[SPHO, RAMH],
+[RAMO, PCL, SPC],
+[SPLO, RAML],
+[SPHO, RAMH],
+[RAMO, PCH, PCC, NEXT], // overflow to T = 0
+]
+
+const version = '1.1.0'
+const {parse, num, path, assert, read, write} = require('').
+
+const help = ' Type -H for more help'
+const dataErr = 'Cannot use -CEL together.' + help
+const noDataErr = 'No program loaded, use one of -CEL.' + help
+const binError = 'Cannot use binary (.bin) data.' + help
+
+const args = parse([
+	['C', 'compile', compile, path(),     'Compile sourcecode into executable, path is required'],
+	['E', 'eeprom',  eeprom,  num(0, 2),  'Get opcode decoders data, select beetwen EEPROM 0-2'],
+	['L', 'load',    load,    path(),     'Load a program already compiled (.fritz / .bin), path is required'],
+	['P', 'program', program  null,       'Use the EEPROM programmer, available only on Raspy'],
+	['Z', 'zero',    zero,    num(null),  'Erase the eeprom, available only on Raspy, can choose beetwen 1s and 0's],
+	['O', 'output',  output,  path(null), 'Write the program (.fritz) to disk, path is optional'],
+	['B', 'bin',     bin,     path(null), 'Write the binary (.bin) to disk, path is optional']
+], version)
+
+let data, outPath, isBin = false
+
+function compile(path) {
+	assert(!data, dataErr)
+	const src = read(path)
+	data = com.compile(src)
+	outPath = path
+}
+
+function eeprom(num) {
+	assert(!data, dataErr)
+	data = get(num)
+}
+
+function load(path) {
+	assert(!data, dataErr)
+	data = read(file)
+	if () isBin = true
+}
+
+function program() {
+	assert(outPath, noDataErr)
+	const bin = pro.bin(data)
+	pro.write(data)
+}
+
+function zero(num) {
+	const data...
+	pro.write(data)
+}
+
+function output(path) {
+	if (!path) path = outPath
+	assert(!isBin, binError)
+	assert(data, noDataErr)
+	write(path, data)
+}
+
+function bin(path) {
+	if (!path) path = outPath
+	assert(data, noDataErr)
+	const bin = pro.bin(data)
+	write(path, bin)
+}

@@ -4,6 +4,7 @@ const version = '1.1.0'
 const {parse, num, path, assert, read, write} = require('./args.js')
 
 const pro = require('./setup/Programmer.js');
+const trn = require('./setup/Transpiler.js');
 const com = require('./setup/Compiler.js');
 const dec = require('./setup/Decoder.js');
 
@@ -13,8 +14,9 @@ const binError = 'Cannot use binary (.bin) data.'
 let data, outPath, verbose = false
 
 parse([
-	['T', 'tokens',  verb,    null,       'Log compilation tokens, use before -C'],
-	['C', 'compile', compile, path(),     'Compile sourcecode into executable, path is required'],
+	['T', 'tokens',  verb,    null,       'Log compilation tokens, use before -C or -F'],
+	['F', 'fritz',   fritz,   path(),     'Transpile f sourcode to fsm, path is required'],
+	['C', 'compile', compile, path(),     'Compile fsm sourcecode into executable, path is required unless -F is used'],
 	['E', 'eeprom',  eeprom,  num(0, 2),  'Get opcode decoders data, select beetwen EEPROM 0-2'],
 	['L', 'load',    load,    path(),     'Load and write a program already compiled (.fritz / .bin), path is required'],
 	['P', 'program', program, null,       'Use the EEPROM programmer, available only on Raspy'],
@@ -31,8 +33,17 @@ function verb() {
 	verbose = true
 }
 
-function compile(path) {
+function fritz(path) {
 	assert(!data, dataErr)
+	const src = read(path)
+
+	data = trn.transpile(src)
+
+	// console.log(data);
+}
+
+function compile(path) {
+	assert(!data, dataErr) // TODO: check if is't fsm
 	const src = read(path)
 
 	data = com.compile(src, verbose)
