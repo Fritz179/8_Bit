@@ -97,8 +97,14 @@ module.exports = {
   },
 
 
-  read: (file) => {
-    assert(fs.existsSync(file), `File ${file} does not exits...`)
+  read: (file, path) => {
+
+    if (!fs.existsSync(file)) {
+      assert(path, `File ${file} does not exits...`)
+      assert(fs.existsSync(path + file), `File ${file} does not exits in ${path}`)
+
+      file = path + file
+    }
 
     if (file.match('.bin')) {
       return fs.readFileSync(file, 'binary')

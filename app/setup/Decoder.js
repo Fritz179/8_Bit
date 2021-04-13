@@ -220,6 +220,7 @@ module.exports = new class Decoder {
       }
 
       const flags = extractFlags(i, ZFB, NFB, VFB, CFB) ^ ALF
+
       const cycle = instToOpcode[inst][flags][clk]
 
       data[i] = (cycle ? cycle : compressOPS([]))[num]

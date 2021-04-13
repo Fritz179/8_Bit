@@ -35,7 +35,7 @@ const delimeters = ['(', ')', '{', '}']
 // r = operator on the right, l = operator on the left, b = binary
 const opResolvers = []
 function addResolver(to, res, constRes) {
-  console.log(constRes);
+  // console.log(constRes);
   opResolvers.push({to, res, constRes})
 }
 

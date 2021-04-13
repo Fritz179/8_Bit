@@ -35,6 +35,7 @@ function verb() {
 
 function fritz(path) {
 	assert(!data, dataErr)
+
 	const src = read(path)
 
 	data = trn.transpile(src)
@@ -44,7 +45,8 @@ function fritz(path) {
 
 function compile(path) {
 	assert(!data, dataErr) // TODO: check if is't fsm
-	const src = read(path)
+
+	const src = read(path, __dirname + '/programs/')
 
 	data = com.compile(src, verbose)
 
