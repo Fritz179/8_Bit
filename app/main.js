@@ -22,7 +22,8 @@ parse([
 	['P', 'program', program, null,       'Use the EEPROM programmer, available only on Raspy'],
 	['Z', 'zero',    zero,    num(null),  'Erase the eeprom, available only on Raspy, can choose beetwen 1s and 0s'],
   ['B', 'bin',     bin,     path(null), 'Write the binary (.bin) to disk, use with -O'],
-	['O', 'output',  output,  path(null), 'Write the program (.fritz / .bin) to disk, path is optional']
+	['O', 'output',  output,  path(null), 'Write the program (.fritz / .bin) to disk, path is optional'],
+	['I', 'inst',    inst,    null,       'Log all the available fsm instructions']
 ], version)
 
 /*
@@ -97,4 +98,8 @@ function bin(path) {
 	assert(data, noDataErr)
 	const out = com.convert(data, 'bin')
   write(path, out, '.bin')
+}
+
+function inst() {
+	dec.printInst()
 }

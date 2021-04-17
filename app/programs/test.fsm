@@ -1,7 +1,0 @@
-            clr a
-            clr b           // clear registers
-start:      inc a
-            jnc start       // increment a until overflow
-            inc b
-            jnc start       // increment b until overflow
-loop:       jmp loop        // infinite loop

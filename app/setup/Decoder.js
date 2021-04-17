@@ -53,7 +53,7 @@ const XNOR = defineOP(0, M | S3 | S0, 0)
 const NOR  = defineOP(0, M | S0, 0)
 const NAND = defineOP(0, M | S2, 0)
 const NOT  = defineOP(0, M, 0)
-const SHRL = defineOP(0, S3 | S2 | C, 0)
+const SHL = defineOP(0, S3 | S2 | C, 0)
 
 const NEXT = defineOP(0, 0, 1 << 0)
 const PCC  = defineOP(0, 0, 1 << 1)
@@ -142,7 +142,7 @@ function defineIN(name, cycles) {
 // 0 - 63 2msb = 0 => ALUI
 const registers = [[[AO, AI], 'a'], [[BO, BI], 'b']]
 registers.forEach(([[rOut, rIn], rName]) => {
-  const unaryOps = [[INC, 'inc'], [DEC, 'dec'], [SHRL, 'shrl'], [NOT, 'not']].forEach(([op, opName]) => {
+  const unaryOps = [[INC, 'inc'], [DEC, 'dec'], [SHL, 'shl'], [NOT, 'not']].forEach(([op, opName]) => {
     defineIN(`${opName} ${rName}`, [
       [rOut, op, ALUI],
       [ALUO, rIn]
@@ -163,6 +163,7 @@ const flags = ['z', 'n', 'v', 'c'].forEach((flag, i) => {
 })
 
 // END ALU
+if (instToOpcode.length >= 0x40) console.log('Too many alu instructions');
 instToOpcode.length = 0x40
 
 // ops on reg
@@ -174,6 +175,7 @@ registers.forEach(([[ao, ai], aName]) => {
   })
 
   defineIN(`clr ${aName}`, [[ai]])
+  defineIN(`mov ${aName}, <number>`, [[ai, PRAM, PCC], []])
 })
 
 function extractFlags(num, ...flags) {
@@ -196,7 +198,7 @@ module.exports = new class Decoder {
 
   printInst() {
     nameToInst.forEach((inst, name) => {
-      console.log(inst.toString().padEnd(3), `0b${inst.toString(2).padStart(8, '0')}`, name);
+      console.log('0x' + inst.toString(16).padEnd(3), '0b' + inst.toString(2).padStart(8, '0'), name);
     })
   }
 

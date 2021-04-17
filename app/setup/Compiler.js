@@ -4,9 +4,10 @@ const {assert} = require('../args.js');
 const fileErr = '500 internal error: Invalid file?'
 const validLine = /^\s*(\/\/|$)|\b(?<index>0x[0-9a-f]{4}), (?<inst>0x[0-9a-f]{2}):/
 const comment = /\/\/.*/g
+const validNumber = /0[xb][0-9a-fA-F]+|[0-9]+/
 
 function assertLine(condition, message, line) {
-  assert(condition, `${message}\n\sOn line: ${line}`)
+  assert(condition, `Error: ${message}\n  On line: ${line}\n`)
 }
 
 function assertNum(num, message, line) {
@@ -18,15 +19,19 @@ module.exports = new class Compiler {
     const name = token.match(/.*:/)
     token = token.replace(/.*:\s*/, '')
 
-    const jump = token.match(/^j\w+\s([a-zA-Z]+)/)
+    const jump = token.match(/^j\w+\s([a-zA-Z0-9]+)/)
     if (jump) token = token.replace(jump[1], '<to>')
 
-    const number = token.match(/[0-9]+/)
-    token = token.replace(/[0-9]+/, '<to>')
+    console.log(jump);
+
+    const number = token.match(validNumber)
+    token = token.replace(validNumber, '<number>')
+
+    assertLine(number <= 255, `Number larger than 255`, line)
 
     const out = { token, line, comment}
 
-    if (number) out.to = Number(number[0])
+    if (number) out.number = Number(number[0])
     if (name) out.name = name[0].slice(0, name[0].length - 1)
     if (jump) out.jump = jump[1]
 
@@ -94,6 +99,7 @@ module.exports = new class Compiler {
     const pure = this.purify(prog)
     const code = this.resolve(pure)
     if (verbose) console.log(code);
+
     return this.convert(code, 'pretty')
   }
 
@@ -104,26 +110,30 @@ module.exports = new class Compiler {
       const tokens = data.data
       let out = ''
 
-      const hex = (num, len) => num.toString(16).padStart(len, '0')
+      const hex = (num = 0, len = 0) => num.toString(16).padStart(len, '0')
+      const lineStart = (line, value, name = '') => {
+        return name.padEnd(10, ' ') + `0x${hex(line, 4)}, 0x${hex(value, 2)}: `
+      }
 
-      tokens.forEach(({pos, token, inst, to, name, jump, comment}) => {
+      tokens.forEach(({pos, token, inst, to, name, jump, comment, number}) => {
         if (name) name += ':'
-        if (!name) name = ''
-        name = name.padEnd(10, ' ')
 
-        out += `${name}0x${hex(pos, 4)}, 0x${hex(inst, 2)}: ${token}`
+        let line = lineStart(pos, inst, name) + token
 
-        if (to >= 0) {
-          out += `\n${''.padEnd(10, ' ')}0x${hex(pos + 1, 4)}, 0x${hex(to, 2)}: `
-          const jmpto = `(${to <= pos ? '-' : '+'}0x${Math.abs((pos + 1) - to).toString(16)}) ${jump}`
-          if (comment) {
-            out += jmpto.padEnd(16, ' ') + comment
-          } else {
-            out += jmpto
-          }
+        line = line.replace('<number>', `0x${hex(number)}`)
+        line = line.replace('<to>', jump)
+
+        if (comment) line = line.padEnd(40, ' ') + comment
+        out += line + '\n'
+
+        if (number) {
+          out += lineStart(pos + 1, number) + '\n'
         }
 
-        out += '\n'
+        if (to >= 0) {
+          out += lineStart(pos + 1, to)
+          out += `(${to <= pos ? '-' : '+'}0x${hex(Math.abs(pos + 1 - to))})\n`
+        }
       })
 
       return {
