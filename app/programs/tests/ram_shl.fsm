@@ -1,0 +1,9 @@
+            clr a
+            clr b           // clear registers
+            mov a, 1
+a:          shl a
+            jnc a           // shift left a until overflow
+            mov b, 1
+b:          shl b
+            jnc b           // shift left b until overflow
+loop:       jmp loop        // infinite loop

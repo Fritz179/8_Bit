@@ -22,8 +22,6 @@ module.exports = new class Compiler {
     const jump = token.match(/^j\w+\s([a-zA-Z0-9]+)/)
     if (jump) token = token.replace(jump[1], '<to>')
 
-    console.log(jump);
-
     const number = token.match(validNumber)
     token = token.replace(validNumber, '<number>')
 
