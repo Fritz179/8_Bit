@@ -71,7 +71,7 @@ module.exports = new class EEPROM {
   }
 
   wait(time) { // microseconds
-    const end = process.hrtime.bigint() + BigInt(time) * 1000n
+    const end = process.hrtime.bigint() + BigInt(100) * 1000n
 
     while (process.hrtime.bigint() < end) {
     }

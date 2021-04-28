@@ -3,7 +3,7 @@
 
   0: I/O high nibble(MARL, MARH, AI, BI, ALUI, SPLI, SPHI, RAMI) low nibble(AO, BO, ALUO, RAMO, PRAM, SPLO, SPHO)
   1: Math (PCH, PCL, CIN, M, S0, S1, S2, S3)
-  2: control (#NEXT, PCC, SPC)
+  2: control (#NEXT, PCC, (NC), SPC)
 */
 const opcodes = []
 function defineOP(e0, e1, e2) {
@@ -17,6 +17,7 @@ function defineOP(e0, e1, e2) {
 // xor all acive low at the end
 const ALOW = defineOP(0b11111111, 0b00000011, 0b00000001)
 
+// all outputs
 const AO   = defineOP((0b0000 ^ 15), 0, 0) // 0b1234
 const BO   = defineOP((0b1000 ^ 15), 0, 0)
 const ALUO = defineOP((0b0100 ^ 15), 0, 0)
@@ -26,6 +27,7 @@ const SPLO = defineOP((0b1010 ^ 15), 0, 0)
 const SPHO = defineOP((0b0110 ^ 15), 0, 0)
 const NOO  = defineOP((0b1111 ^ 15), 0, 0)
 
+// all inputs
 const MARL = defineOP((0b0000 ^ 15) << 4, 0, 0) // 0b1234
 const MARH = defineOP((0b1000 ^ 15) << 4, 0, 0)
 const AI   = defineOP((0b0100 ^ 15) << 4, 0, 0)
@@ -36,9 +38,16 @@ const SPHI = defineOP((0b0110 ^ 15) << 4, 0, 0)
 const RAMI = defineOP((0b1110 ^ 15) << 4, 0, 0)
 const NOI  = defineOP((0b1111 ^ 15) << 4, 0, 0)
 
+// input program counter
 const PCH  = defineOP(0, 1, 0)
 const PCL  = defineOP(0, 2, 0)
 
+// control logic
+const NEXT = defineOP(0, 0, 1 << 0)
+const PCC  = defineOP(0, 0, 1 << 1)
+const SPC  = defineOP(0, 0, 1 << 3)
+
+// 74181
 const C = 1 << 2, M = 1 << 3, S0 = 1 << 4, S1 = 1 << 5, S2 = 1 << 6, S3 = 1 << 7
 const ADDC = defineOP(0, S3 | S0, 0) // 0b10010000
 const ADD  = defineOP(0, S3 | S0 | C, 0) // 0b10010100
@@ -55,9 +64,6 @@ const NAND = defineOP(0, M | S2, 0)
 const NOT  = defineOP(0, M, 0)
 const SHL = defineOP(0, S3 | S2 | C, 0)
 
-const NEXT = defineOP(0, 0, 1 << 0)
-const PCC  = defineOP(0, 0, 1 << 1)
-
 // flags
 const ZF  = 1 << 0
 const NF  = 1 << 1
@@ -65,6 +71,7 @@ const VF  = 1 << 2
 const CF  = 1 << 3
 const ALF = 0b1000 // Carry active low
 
+// wired bit of clock and flags
 const CLK1 = 1 << 8
 const CLK2 = 1 << 9
 const CLK3 = 1 << 11
@@ -140,8 +147,11 @@ function defineIN(name, cycles) {
 }
 
 // 0 - 63 2msb = 0 => ALUI
-const registers = [[[AO, AI], 'a'], [[BO, BI], 'b']]
-registers.forEach(([[rOut, rIn], rName]) => {
+const registers = [[[AI, AO], 'a'], [[BI, BO], 'b']]
+const inRegister = [[[MARH], 'marh'], [[MARL], 'marl']]
+const spRegister = [[[SPHI, SPHO], 'sph'], [[SPLI, SPLO], 'spl']]
+
+registers.forEach(([[rIn, rOut], rName]) => {
   const unaryOps = [[INC, 'inc'], [DEC, 'dec'], [SHL, 'shl'], [NOT, 'not']].forEach(([op, opName]) => {
     defineIN(`${opName} ${rName}`, [
       [rOut, op, ALUI],
@@ -167,8 +177,8 @@ if (instToOpcode.length >= 0x40) console.log('Too many alu instructions');
 instToOpcode.length = 0x40
 
 // ops on reg
-registers.forEach(([[ao, ai], aName]) => {
-  registers.forEach(([[bo, bi], bName]) => {
+registers.forEach(([[ai, ao], aName]) => {
+  registers.forEach(([[bi, bo], bName]) => {
     if (aName != bName) {
       defineIN(`mov ${aName}, ${bName}`, [[ai, bo]])
     }

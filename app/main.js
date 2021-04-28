@@ -1,11 +1,11 @@
 require('dotenv').config();
 
-const version = '1.1.0'
+const version = '1.2.0'
 const {parse, num, path, assert, read, write} = require('./args.js')
 
 const pro = require('./setup/Programmer.js');
-const trn = require('./setup/Transpiler.js');
 const com = require('./setup/Compiler.js');
+const asm = require('./setup/Assembler.js');
 const dec = require('./setup/Decoder.js');
 
 const dataErr = 'Cannot use -CEL together.'
@@ -14,16 +14,16 @@ const binError = 'Cannot use binary (.bin) data.'
 let data, outPath, verbose = false
 
 parse([
-	['T', 'tokens',  verb,    null,       'Log compilation tokens, use before -C or -F'],
-	['F', 'fritz',   fritz,   path(),     'Transpile f sourcode to fsm, path is required'],
-	['C', 'compile', compile, path(),     'Compile fsm sourcecode into executable, path is required unless -F is used'],
-	['E', 'eeprom',  eeprom,  num(0, 2),  'Get opcode decoders data, select beetwen EEPROM 0-2'],
-	['L', 'load',    load,    path(),     'Load and write a program already compiled (.fritz / .bin), path is required'],
-	['P', 'program', program, null,       'Use the EEPROM programmer, available only on Raspy'],
-	['Z', 'zero',    zero,    num(null),  'Erase the eeprom, available only on Raspy, can choose beetwen 1s and 0s'],
-  ['B', 'bin',     bin,     path(null), 'Write the binary (.bin) to disk, use with -O'],
-	['O', 'output',  output,  path(null), 'Write the program (.fritz / .bin) to disk, path is optional'],
-	['I', 'inst',    inst,    null,       'Log all the available fsm instructions']
+	['T', 'tokens',   verb,     null,       'Log compilation/assembling tokens, use before -C or -F'],
+	['F', 'fritz',    fritz,    path(),     'Compile f sourcode to fsm, path is required'],
+	['A', 'assemble', assemble, path(),     'Assemble fsm sourcecode into executable, path is required unless -F is used'],
+	['E', 'eeprom',   eeprom,   num(0, 2),  'Get opcode decoders data, select beetwen EEPROM 0-2'],
+	['L', 'load',     load,     path(),     'Load and write a program already compiled (.fritz / .bin), path is required'],
+	['P', 'program',  program,  null,       'Use the EEPROM programmer, available only on Raspy'],
+	['Z', 'zero',     zero,     num(null),  'Erase the eeprom, available only on Raspy, can choose beetwen 1s and 0s'],
+  ['B', 'bin',      bin,      path(null), 'Write the binary (.bin) to disk, use with -O'],
+	['O', 'output',   output,   path(null), 'Write the program (.fritz / .bin) to disk, path is optional'],
+	['I', 'inst',     inst,     null,       'Log all the available fsm instructions']
 ], version)
 
 /*
@@ -37,19 +37,19 @@ function verb() {
 function fritz(path) {
 	assert(!data, dataErr)
 
-	const src = read(path)
+	const src = read(path, __dirname + '/programs/')
 
-	data = trn.transpile(src)
+	data = com.compile(src)
 
-	// console.log(data);
+	outPath = path
 }
 
-function compile(path) {
+function assemble(path) {
 	assert(!data, dataErr) // TODO: check if is't fsm
 
 	const src = read(path, __dirname + '/programs/')
 
-	data = com.compile(src, verbose)
+	data = asm.assemble(src, verbose)
 
 	console.log(data.data, '\n');
   console.log(`Program length: ${data.data.length} bytes`);
@@ -65,16 +65,16 @@ function eeprom(num) {
 
 function load(path) {
 	assert(!data, dataErr)
-  data = com.validate(read(path))
+  data = asm.validate(read(path))
   outPath = path
 
-  const out = com.convert(data, 'eeprom')
+  const out = asm.convert(data, 'eeprom')
 	pro.write(out.data)
 }
 
 function program() {
 	assert(data, noDataErr)
-  const out = com.convert(data, 'eeprom')
+  const out = asm.convert(data, 'eeprom')
   pro.write(out.data)
 }
 
@@ -89,6 +89,7 @@ function zero(num = 0) {
 
 function output(path) {
 	if (!path) path = outPath
+
 	assert(data, noDataErr)
 	write(path, data.data, '.asm')
 }
